@@ -1,0 +1,28 @@
+#!/usr/bin/env Rscript
+options(stringsAsFactors=FALSE,scipen=999)
+case_lib <- Sys.getenv("LRRK2_R_LIB", unset = "")
+if (nzchar(case_lib)) .libPaths(c(case_lib, .libPaths()))
+suppressPackageStartupMessages({library(data.table);library(Matrix);library(Seurat)})
+root<-normalizePath(getwd(),winslash="/",mustWork=TRUE);date<-"2026-08-01";stats<-file.path(root,"results/statistics")
+set.seed(20260801)
+manifest<-fread(file.path(stats,paste0("single_cell_compact_object_manifest_",date,".csv")));ann<-fread(file.path(stats,paste0("single_cell_final_annotations_",date,".csv")));qc<-fread(file.path(stats,paste0("single_cell_qc_inclusion_lock_",date,".csv")));input_lock<-fread(file.path(stats,paste0("single_cell_input_inclusion_lock_",date,".csv")))
+cells<-list()
+for(i in seq_len(nrow(manifest))){a<-manifest[i];p<-file.path(root,a$object_path)
+ if(a$dataset=="GSE138794"){s<-readRDS(p);m<-GetAssayData(s,layer="counts");lib<-colSums(m);v<-if("LRRK2"%in%rownames(m))as.numeric(m["LRRK2",])else rep(NA_real_,ncol(m));expr<-log1p(v/pmax(lib,1)*10000);ids<-colnames(m)}else{z<-readRDS(p);m<-z$expression;ids<-colnames(m);v<-as.numeric(m["LRRK2",]);if(z$value_scale=="TPM_processed")expr<-log1p(v)else expr<-log1p(v/pmax(z$cell_metadata$total_expression_or_counts,1)*10000)}
+ an<-ann[match(ids,cell_id)];qq<-qc[match(ids,cell_id)]; role<-input_lock[dataset==a$dataset & gsm==a$gsm]$analysis_role[1]
+ stratum<-if(a$dataset=="GSE131928")ifelse(qq$age_group=="adult","GSE131928_adult","GSE131928_pediatric")else if(a$dataset=="GSE103224")"GSE103224" else if(role=="external_scRNA_localization")"GSE138794_scRNA" else if(role=="separate_modality_sensitivity")"GSE138794_snRNA" else "GSE138794_annotation_sensitivity"
+ cells[[i]]<-data.table(dataset=a$dataset,gsm=a$gsm,cell_id=ids,tumor_id=an$tumor_id,cohort_stratum=stratum,final_annotation=an$final_annotation,lrrk2_original_value=v,lrrk2_log1p_normalized=expr,lrrk2_detected=v>0,primary_include=qq$primary_include,qc_sensitivity_include=qq$qc_sensitivity_include)
+ rm(m);gc()
+}
+cell<-rbindlist(cells);fwrite(cell,file.path(stats,paste0("single_cell_lrrk2_cell_values_",date,".csv")))
+summaries<-list()
+for(analysis_name in c("primary","qc_sensitivity")){z<-if(analysis_name=="primary")cell[primary_include==TRUE]else cell[qc_sensitivity_include==TRUE];s<-z[,.(n_cells=.N,mean_log1p_lrrk2=mean(lrrk2_log1p_normalized,na.rm=TRUE),median_log1p_lrrk2=median(lrrk2_log1p_normalized,na.rm=TRUE),detection_fraction=mean(lrrk2_detected,na.rm=TRUE)),by=.(cohort_stratum,tumor_id,final_annotation)];s[,analysis:=analysis_name];setcolorder(s,c("analysis","cohort_stratum","tumor_id","final_annotation","n_cells","mean_log1p_lrrk2","median_log1p_lrrk2","detection_fraction"));s<-s[n_cells>=20];summaries[[analysis_name]]<-s}
+psum<-rbindlist(summaries);fwrite(psum,file.path(stats,paste0("single_cell_lrrk2_patient_celltype_summary_",date,".csv")))
+comparisons<-list();valid_labels<-c("myeloid","oligodendrocyte","astrocyte","endothelial_cell")
+for(aname in unique(psum$analysis))for(co in c("GSE131928_adult","GSE103224","GSE138794_scRNA"))for(metric in c("mean_log1p_lrrk2","detection_fraction"))for(lbl in valid_labels){z<-psum[analysis==aname&cohort_stratum==co&final_annotation%in%c("neoplastic-like",lbl)];w<-dcast(z,tumor_id~final_annotation,value.var=metric);if(all(c("neoplastic-like",lbl)%in%names(w))){w<-w[complete.cases(w[,c("neoplastic-like",lbl),with=FALSE])];n<-nrow(w);dif<-w[[lbl]]-w[["neoplastic-like"]];p<-if(n>=3)tryCatch(wilcox.test(dif,mu=0,alternative="two.sided",exact=FALSE)$p.value,error=function(e)NA_real_)else NA_real_;boot<-if(n>=3)replicate(2000,median(sample(dif,n,replace=TRUE)))else c(NA_real_);ci<-if(n>=3)quantile(boot,c(.025,.975),na.rm=TRUE)else c(NA_real_,NA_real_);comparisons[[length(comparisons)+1]]<-data.frame(analysis=aname,cohort_stratum=co,metric=metric,cell_label=lbl,paired_tumors=n,median_paired_difference=if(n)median(dif)else NA,bootstrap_ci_lower=ci[1],bootstrap_ci_upper=ci[2],mean_paired_difference=if(n)mean(dif)else NA,p_value=p)}}
+cmp<-rbindlist(comparisons,fill=TRUE);cmp[,adjusted_p_value:=p.adjust(p_value,"BH"),by=.(analysis,cohort_stratum,metric)];fwrite(cmp,file.path(stats,paste0("single_cell_lrrk2_patient_paired_comparisons_",date,".csv")))
+disc<-cmp[analysis=="primary"&cohort_stratum=="GSE131928_adult"];repout<-list()
+for(i in seq_len(nrow(disc))){d<-disc[i];v<-cmp[analysis=="primary"&cohort_stratum%in%c("GSE103224","GSE138794_scRNA")&metric==d$metric&cell_label==d$cell_label];same<-sign(v$median_paired_difference)==sign(d$median_paired_difference);repout[[i]]<-data.frame(metric=d$metric,cell_label=d$cell_label,discovery_paired_tumors=d$paired_tumors,discovery_median_difference=d$median_paired_difference,discovery_adjusted_p_value=d$adjusted_p_value,external_direction_replication=any(same,na.rm=TRUE),external_statistical_replication=any(same&v$adjusted_p_value<.05,na.rm=TRUE),external_cohorts_same_direction=paste(v$cohort_stratum[same],collapse=";"),interpretation=ifelse(!is.na(d$adjusted_p_value)&d$adjusted_p_value<.05&any(same&v$adjusted_p_value<.05,na.rm=TRUE),"statistical_external_replication",ifelse(!is.na(d$adjusted_p_value)&d$adjusted_p_value<.05&any(same,na.rm=TRUE),"direction_only_external_replication","no_prespecified_replication_claim")))}
+fwrite(rbindlist(repout,fill=TRUE),file.path(stats,paste0("single_cell_lrrk2_localization_replication_",date,".csv")))
+writeLines(capture.output(sessionInfo()),file.path(root,"provenance/software_snapshots",paste0("single_cell_lrrk2_localization_sessionInfo_",date,".txt")))
+cat("LRRK2 localization completed for",nrow(cell),"cells and",nrow(psum),"patient-label summaries\n")

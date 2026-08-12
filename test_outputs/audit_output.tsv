@@ -1,0 +1,6 @@
+claim_key	status	evidence_tier
+bulk_transcriptomic.program_A	REPLICATED_ALL_EXTERNAL	Tier 1: replicated in all eligible external cohorts
+clinical.overall_survival	PARTIALLY_REPLICATED	Tier 2: replicated in a subset of eligible external cohorts
+single_cell.cell_localization	DIRECTIONAL_SUPPORT	Tier 2: directional external support
+immune.immune_abundance	CONTRADICTED	Tier 4: externally contradicted
+multiomic.late_integration	STOPPED_DISCOVERY_QC	Stopped

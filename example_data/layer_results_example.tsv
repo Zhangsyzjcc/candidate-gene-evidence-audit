@@ -1,0 +1,11 @@
+layer	claim_id	cohort	cohort_role	same_estimand	direction	p_value	q_value	leading_edge_overlap	sensitivity_pass	measurement_adequate	notes
+clinical	overall_survival	DISC	discovery	TRUE	1	0.002			TRUE	TRUE	Discovery association
+clinical	overall_survival	VAL1	validation	TRUE	1	0.02			TRUE	TRUE	One validation supports
+clinical	overall_survival	VAL2	validation	TRUE	0	0.8			TRUE	TRUE	Second validation null
+bulk_transcriptomic	program_A	DISC	discovery	TRUE	-1	0.0001	0.001		TRUE	TRUE	Discovery FDR
+bulk_transcriptomic	program_A	VAL1	validation	TRUE	-1	0.001	0.01	0.35	TRUE	TRUE	External replication
+single_cell	cell_localization	DISC	discovery	TRUE	1	0.01	0.03		TRUE	TRUE	Patient-level discovery
+single_cell	cell_localization	VAL1	validation	TRUE	1	0.2	0.3		TRUE	TRUE	Directional only
+immune	immune_abundance	DISC	discovery	TRUE	1	0.01	0.03		TRUE	TRUE	Discovery
+immune	immune_abundance	VAL1	validation	TRUE	-1	0.01	0.03		TRUE	TRUE	Significant conflict
+multiomic	late_integration	DISC	discovery	TRUE	1	0.01			FALSE	TRUE	Influence sensitivity failed
