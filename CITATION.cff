@@ -3,11 +3,11 @@ message: "If you use this framework, cite the repository and associated article.
 title: "Candidate-gene replication-and-evidence audit framework"
 type: software
 authors:
-  - family-names: "[Zhang]"
-    given-names: "[Shuyuan]"
-    email: "[zhangsy@zjcc.org.cn]"
-    orcid: "https://orcid.org/[0009-0002-0555-8129]"
+  - family-names: "Zhang"
+    given-names: "Shuyuan"
+    email: "zhangsy@zjcc.org.cn"
+    orcid: "https://orcid.org/0009-0002-0555-8129"
 version: "1.0.0-submission"
 date-released: "2026-08-19"
 license: MIT
-repository-code: "https://github.com/[Zhangsyzjcc]/candidate-gene-evidence-audit"
+repository-code: "https://github.com/Zhangsyzjcc/candidate-gene-evidence-audit"
