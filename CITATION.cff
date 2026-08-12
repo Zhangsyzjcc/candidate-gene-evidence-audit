@@ -8,6 +8,6 @@ authors:
     email: "zhangsy@zjcc.org.cn"
     orcid: "https://orcid.org/0009-0002-0555-8129"
 version: "1.0.0-submission"
-date-released: "2026-08-19"
+date-released: "2026-08-12"
 license: MIT
 repository-code: "https://github.com/Zhangsyzjcc/candidate-gene-evidence-audit"
